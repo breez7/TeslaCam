@@ -11,10 +11,10 @@ username = 'pi'
 ssh = paramiko.SSHClient()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
-# SENTRY_PATH = '/mnt/cam/TeslaCam/SentryClips'
-# SAVEDCAM_PATH = '/mnt/cam/TeslaCam/SavedClips'
-SENTRY_PATH = '/home/james/project/tesla/SentryClips'
-SAVEDCAM_PATH = '/home/james/project/tesla/SavedClips'
+SENTRY_PATH = '/mnt/cam/TeslaCam/SentryClips'
+SAVEDCAM_PATH = '/mnt/cam/TeslaCam/SavedClips'
+#SENTRY_PATH = '/home/james/project/tesla/SentryClips'
+#SAVEDCAM_PATH = '/home/james/project/tesla/SavedClips'
 def wait(min):
     subprocess.call(['umount', '/mnt/cam'])
     time.sleep(min*60)
@@ -43,14 +43,14 @@ def upload_for_sftp(root, paths, target_path):
     print(paths)
     if len(paths) == 0:
         return
-    ssh.connect(host, username='pi', port=port, password='jdytwnb7')
+    ssh.connect(host, username='pi', port=port, password='lckdyfw7')
     sftp = paramiko.SFTPClient.from_transport(ssh.get_transport())
 
     for path in paths:
         print('send ' + path)
         try:
             sftp.stat('/media/hdd/TeslaCam/' + target_path + '/' + path)
-        except FileNotFoundError:
+        except:
             sftp.mkdir('/media/hdd/TeslaCam/' + target_path + '/' + path)
             send_files = get_event_files(root, path)
             for send_file in send_files:
@@ -95,11 +95,13 @@ def get_newcam_list(root, checkpoint):
 
 
 if '__main__' == __name__:
-    # while(True):
-        # wait(5)
-        cam_paths = get_newcam_list(SENTRY_PATH, 'SentryClips_Checkpoint')
+     while(True):
+        wait(3)
+        #subprocess.call(['mount', '/mnt/cam'])
+        cam_paths = get_newcam_list(SENTRY_PATH, '/home/pi/TeslaCam/SentryClips_Checkpoint')
         upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips')
         print('Sentry done')            
-        cam_paths = get_newcam_list(SAVEDCAM_PATH, 'SavedClips_Checkpoint')
+        cam_paths = get_newcam_list(SAVEDCAM_PATH, '/home/pi/TeslaCam/SavedClips_Checkpoint')
         upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips')
         print('Saved done')            
+        #subprocess.call(['umount', '/mnt/cam'])
