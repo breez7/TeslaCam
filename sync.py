@@ -105,6 +105,7 @@ def get_newcam_list(root, checkpoint):
 if '__main__' == __name__:
      while(True):
         wait(3)
+        #subprocess.call(['mount', '/mnt/cam'])
         # cam_paths = get_newcam_list(SENTRY_PATH, 'SentryClips_Checkpoint')
         # upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips', 'SentryClips_Checkpoint')
         cam_paths = get_newcam_list(SENTRY_PATH, '/home/pi/TeslaCam/SentryClips_Checkpoint')
@@ -115,3 +116,4 @@ if '__main__' == __name__:
         cam_paths = get_newcam_list(SAVEDCAM_PATH, '/home/pi/TeslaCam/SavedClips_Checkpoint')
         upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips', '/home/pi/TeslaCam/SavedClips_Checkpoint')
         print('Saved done')            
+        #subprocess.call(['umount', '/mnt/cam'])
