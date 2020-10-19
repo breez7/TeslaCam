@@ -52,11 +52,12 @@ def upload_for_smb(root, paths, target_path, checkpoint):
         prefix_root = '/182.222.81.199/pi/TeslaCam/'
         #prefix_root = '/182.222.81.199/pi/TeslaCam2/'
         try:
-            smbclient.mkdir(prefix_root + target_path + '/' + path, port=smb_port)
+            smbclient.mkdir(prefix_root + target_path + '/' + path,username='pi', password='xxx', port=smb_port)
         except:
             pass
         
         send_files = get_event_files(root, path)
+        print(send_files)
         for send_file in send_files:
             try:
                 smbclient.stat(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1], port=smb_port)
@@ -66,7 +67,12 @@ def upload_for_smb(root, paths, target_path, checkpoint):
                 # sftp.put(send_file, prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
                 dest = smbclient.open_file(prefix_root+target_path+'/'+path+'/'+send_file.split('/')[-1], 'wb', port=2445)
                 src = open(send_file, 'rb')
-                dest.write(src.read())
+                while True:
+                    temp = src.read(1024*4)
+                    print('sending' + str(len(temp)))
+                    if len(temp) == 0:
+                        break
+                    dest.write(temp)
                 src.close()
                 dest.close()
 
@@ -139,14 +145,12 @@ if '__main__' == __name__:
      while(True):
         wait(3)
         #subprocess.call(['mount', '/mnt/cam'])
-        # cam_paths = get_newcam_list(SENTRY_PATH, 'SentryClips_Checkpoint')
-        # upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips', 'SentryClips_Checkpoint')
         cam_paths = get_newcam_list(SENTRY_PATH, '/home/pi/TeslaCam/SentryClips_Checkpoint')
-        upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips', '/home/pi/TeslaCam/SentryClips_Checkpoint')
+        upload_for_smb(SENTRY_PATH, cam_paths, 'SentryClips', '/home/pi/TeslaCam/SentryClips_Checkpoint')
+        #upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips', 'SentryClips_Checkpoint')
         print('Sentry done')            
-        # cam_paths = get_newcam_list(SAVEDCAM_PATH, 'SavedClips_Checkpoint')
-        # upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips', 'SavedClips_Checkpoint')
         cam_paths = get_newcam_list(SAVEDCAM_PATH, '/home/pi/TeslaCam/SavedClips_Checkpoint')
-        upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips', '/home/pi/TeslaCam/SavedClips_Checkpoint')
+        upload_for_smb(SAVEDCAM_PATH, cam_paths, 'SavedClips', '/home/pi/TeslaCam/SavedClips_Checkpoint')
+        #upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips', 'SavedClips_Checkpoint')
         print('Saved done')            
         #subprocess.call(['umount', '/mnt/cam'])
