@@ -43,7 +43,7 @@ def upload_for_sftp(root, paths, target_path):
     print(paths)
     if len(paths) == 0:
         return
-    ssh.connect(host, username='pi', port=port, password='lckdyfw7')
+    ssh.connect(host, username='pi', port=port, password='xxx')
     sftp = paramiko.SFTPClient.from_transport(ssh.get_transport())
 
     for path in paths:
