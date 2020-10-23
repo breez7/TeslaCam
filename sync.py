@@ -13,8 +13,8 @@ ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 SENTRY_PATH = '/mnt/cam/TeslaCam/SentryClips'
 SAVEDCAM_PATH = '/mnt/cam/TeslaCam/SavedClips'
-#SENTRY_PATH = '/home/james/project/tesla/SentryClips'
-#SAVEDCAM_PATH = '/home/james/project/tesla/SavedClips'
+# SENTRY_PATH = '/home/james/project/tesla/SentryClips'
+# SAVEDCAM_PATH = '/home/james/project/tesla/SavedClips'
 def wait(min):
     subprocess.call(['umount', '/mnt/cam'])
     time.sleep(min*60)
@@ -39,7 +39,7 @@ def make_checkpoint(paths, checkpoint):
     f.write(str_temp)
     f.close()
 
-def upload_for_sftp(root, paths, target_path):
+def upload_for_sftp(root, paths, target_path, checkpoint):
     print(paths)
     if len(paths) == 0:
         return
@@ -48,18 +48,25 @@ def upload_for_sftp(root, paths, target_path):
 
     for path in paths:
         print('send ' + path)
+        prefix_root = '/media/hdd/TeslaCam/'
+        # prefix_root = '/media/hdd/TeslaCam2/'
         try:
-            sftp.stat('/media/hdd/TeslaCam/' + target_path + '/' + path)
+            sftp.stat(prefix_root + target_path + '/' + path)
         except:
-            sftp.mkdir('/media/hdd/TeslaCam/' + target_path + '/' + path)
-            send_files = get_event_files(root, path)
-            for send_file in send_files:
+            sftp.mkdir(prefix_root + target_path + '/' + path)
+        
+        send_files = get_event_files(root, path)
+        for send_file in send_files:
+            try:
+                sftp.stat(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
+            except:
                 print(send_file)
-                print('/media/hdd/TeslaCam/' + target_path + '/' + path + '/' + send_file.split('/')[-1])
-                sftp.put(send_file, '/media/hdd/TeslaCam/' + target_path + '/' + path + '/' + send_file.split('/')[-1])
+                print(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
+                sftp.put(send_file, prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
 
     sftp.close()
     ssh.close()
+    make_checkpoint(paths, checkpoint)
 
 def get_event_files(root, path):
     files = os.listdir(root + '/' + path)
@@ -69,6 +76,8 @@ def get_event_files(root, path):
     else:
         files = files[:len(files)]
 
+    if not 'thumb.png' in files:
+        files = files[:-1]
     for i in range(len(files)):
         files[i] = root + '/' + path  + '/' + files[i]
     return files
@@ -88,7 +97,6 @@ def get_newcam_list(root, checkpoint):
     else:
         newcam_list = all_list
     
-    make_checkpoint(all_list, checkpoint)
 
     return newcam_list
 
@@ -97,11 +105,13 @@ def get_newcam_list(root, checkpoint):
 if '__main__' == __name__:
      while(True):
         wait(3)
-        #subprocess.call(['mount', '/mnt/cam'])
+        # cam_paths = get_newcam_list(SENTRY_PATH, 'SentryClips_Checkpoint')
+        # upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips', 'SentryClips_Checkpoint')
         cam_paths = get_newcam_list(SENTRY_PATH, '/home/pi/TeslaCam/SentryClips_Checkpoint')
-        upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips')
+        upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips', '/home/pi/TeslaCam/SentryClips_Checkpoint')
         print('Sentry done')            
+        # cam_paths = get_newcam_list(SAVEDCAM_PATH, 'SavedClips_Checkpoint')
+        # upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips', 'SavedClips_Checkpoint')
         cam_paths = get_newcam_list(SAVEDCAM_PATH, '/home/pi/TeslaCam/SavedClips_Checkpoint')
-        upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips')
+        upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips', '/home/pi/TeslaCam/SavedClips_Checkpoint')
         print('Saved done')            
-        #subprocess.call(['umount', '/mnt/cam'])
