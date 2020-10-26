@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 import subprocess
 import paramiko
+import smbclient
 
 host = '182.222.81.199'
 port = '2222'
@@ -38,6 +39,38 @@ def make_checkpoint(paths, checkpoint):
     f = open(checkpoint, 'w')
     f.write(str_temp)
     f.close()
+
+smb_port = 2445
+smbclient.register_session(host, username='pi', password='xxx', port=smb_port)
+def upload_for_smb(root, paths, target_path, checkpoint):
+    print(paths)
+    if len(paths) == 0:
+        return
+
+    for path in paths:
+        print('send ' + path)
+        prefix_root = '/182.222.81.199/pi/TeslaCam/'
+        #prefix_root = '/182.222.81.199/pi/TeslaCam2/'
+        try:
+            smbclient.mkdir(prefix_root + target_path + '/' + path, port=smb_port)
+        except:
+            pass
+        
+        send_files = get_event_files(root, path)
+        for send_file in send_files:
+            try:
+                smbclient.stat(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1], port=smb_port)
+            except:
+                print(send_file)
+                print(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
+                # sftp.put(send_file, prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
+                dest = smbclient.open_file(prefix_root+target_path+'/'+path+'/'+send_file.split('/')[-1], 'wb', port=2445)
+                src = open(send_file, 'rb')
+                dest.write(src.read())
+                src.close()
+                dest.close()
+
+    make_checkpoint(paths, checkpoint)
 
 def upload_for_sftp(root, paths, target_path, checkpoint):
     print(paths)
