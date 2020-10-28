@@ -6,20 +6,36 @@ import subprocess
 import paramiko
 import smbclient
 
-host = '182.222.81.199'
-port = '2222'
-username = 'pi'
-ssh = paramiko.SSHClient()
-ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+MOUNT_POINT = '/mnt/cam'
 
-SENTRY_PATH = '/mnt/cam/TeslaCam/SentryClips'
-SAVEDCAM_PATH = '/mnt/cam/TeslaCam/SavedClips'
-# SENTRY_PATH = '/home/james/project/tesla/SentryClips'
-# SAVEDCAM_PATH = '/home/james/project/tesla/SavedClips'
-def wait(min):
-    subprocess.call(['umount', '/mnt/cam'])
-    time.sleep(min*60)
-    subprocess.call(['mount', '/mnt/cam'])
+# WAIT_TIME = 180
+# TARGET_SENTRYCLIPS_PATH = '/182.222.81.199/pi/TeslaCam/SentryClips'
+# TARGET_SAVEDCLIPS_PATH = '/182.222.81.199/pi/TeslaCam/SavedCLips'
+# SENTRYCLIPS_CHECKPOINT = '/home/pi/TeslaCam/SentryClips_Checkpoint'
+# SAVEDCLIPS_CHECKPOINT  = '/home/pi/TeslaCam/SavedClips_Checkpoint'
+# SENTRYCLIPS_PATH = '/mnt/cam/TeslaCam/SentryClips'
+# SAVEDCLIPS_PATH = '/mnt/cam/TeslaCam/SavedClips'
+WAIT_TIME = 1
+TARGET_SENTRYCLIPS_PATH = '/182.222.81.199/pi/TeslaCam2/SentryClips'
+TARGET_SAVEDCLIPS_PATH = '/182.222.81.199/pi/TeslaCam2/SavedCLips'
+SENTRYCLIPS_CHECKPOINT = '/home/james/project/tesla/SentryClips_Checkpoint'
+SAVEDCLIPS_CHECKPOINT  = '/home/james/project/tesla/SavedClips_Checkpoint'
+SENTRYCLIPS_PATH = '/home/james/project/tesla/SentryClips'
+SAVEDCLIPS_PATH = '/home/james/project/tesla/SavedClips'
+
+UPLOAD_METHOD = 'smb' # sftp or smb
+
+host = '182.222.81.199'
+username = 'pi'
+password = 'xxx'
+smb_port = 2445
+ssh_port = '2222'
+ssh = ''
+if UPLOAD_METHOD == 'smb':
+    smbclient.register_session(host, username=username, password=password, port=smb_port)
+else:
+    ssh = paramiko.SSHClient()
+    ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
 def is_new_date(path, checkpoint):
     f = open(checkpoint, 'r')
@@ -40,36 +56,27 @@ def make_checkpoint(paths, checkpoint):
     f.write(str_temp)
     f.close()
 
-smb_port = 2445
-smbclient.register_session(host, username='pi', password='xxx', port=smb_port)
 def upload_for_smb(root, paths, target_path, checkpoint):
-    print(paths)
     if len(paths) == 0:
         return
 
     for path in paths:
-        print('send ' + path)
-        prefix_root = '/182.222.81.199/pi/TeslaCam/'
-        #prefix_root = '/182.222.81.199/pi/TeslaCam2/'
+        print('send path : ' + path)
         try:
-            smbclient.mkdir(prefix_root + target_path + '/' + path,username='pi', password='xxx', port=smb_port)
+            smbclient.mkdir(target_path + '/' + path,username=username, password=password, port=smb_port)
         except:
             pass
         
         send_files = get_event_files(root, path)
-        print(send_files)
         for send_file in send_files:
             try:
-                smbclient.stat(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1], port=smb_port)
+                smbclient.stat(target_path + '/' + path + '/' + send_file.split('/')[-1],username=username, password=password, port=smb_port)
             except:
-                print(send_file)
-                print(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
-                # sftp.put(send_file, prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
-                dest = smbclient.open_file(prefix_root+target_path+'/'+path+'/'+send_file.split('/')[-1], 'wb', port=2445)
+                print('sending ' + send_file)
+                dest = smbclient.open_file(target_path+'/'+path+'/'+send_file.split('/')[-1], 'wb',username=username, password=password, port=smb_port)
                 src = open(send_file, 'rb')
                 while True:
-                    temp = src.read(1024*4)
-                    print('sending' + str(len(temp)))
+                    temp = src.read(1024 * 4)
                     if len(temp) == 0:
                         break
                     dest.write(temp)
@@ -79,29 +86,26 @@ def upload_for_smb(root, paths, target_path, checkpoint):
     make_checkpoint(paths, checkpoint)
 
 def upload_for_sftp(root, paths, target_path, checkpoint):
-    print(paths)
     if len(paths) == 0:
         return
-    ssh.connect(host, username='pi', port=port, password='xxx')
+    ssh.connect(host, username=username, port=ssh_port, password=password)
     sftp = paramiko.SFTPClient.from_transport(ssh.get_transport())
 
+    root_prefix = '/media/hdd/TeslaCam/'
     for path in paths:
-        print('send ' + path)
-        prefix_root = '/media/hdd/TeslaCam/'
-        # prefix_root = '/media/hdd/TeslaCam2/'
+        print('send path : ' + path)
         try:
-            sftp.stat(prefix_root + target_path + '/' + path)
+            sftp.stat(root_prefix + target_path + '/' + path)
         except:
-            sftp.mkdir(prefix_root + target_path + '/' + path)
+            sftp.mkdir(root_prefix + target_path + '/' + path)
         
         send_files = get_event_files(root, path)
         for send_file in send_files:
             try:
-                sftp.stat(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
+                sftp.stat(root_prefix + target_path + '/' + path + '/' + send_file.split('/')[-1])
             except:
-                print(send_file)
-                print(prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
-                sftp.put(send_file, prefix_root + target_path + '/' + path + '/' + send_file.split('/')[-1])
+                print('sending ' + send_file)
+                sftp.put(send_file, root_prefix + target_path + '/' + path + '/' + send_file.split('/')[-1])
 
     sftp.close()
     ssh.close()
@@ -136,21 +140,27 @@ def get_newcam_list(root, checkpoint):
     else:
         newcam_list = all_list
     
-
+    print(newcam_list)
     return newcam_list
 
-
-
 if '__main__' == __name__:
-     while(True):
-        wait(3)
-        #subprocess.call(['mount', '/mnt/cam'])
-        cam_paths = get_newcam_list(SENTRY_PATH, '/home/pi/TeslaCam/SentryClips_Checkpoint')
-        upload_for_smb(SENTRY_PATH, cam_paths, 'SentryClips', '/home/pi/TeslaCam/SentryClips_Checkpoint')
-        #upload_for_sftp(SENTRY_PATH, cam_paths, 'SentryClips', 'SentryClips_Checkpoint')
+    #  while(True):
+        subprocess.call(['mount', MOUNT_POINT])
+
+        time.sleep(WAIT_TIME)
+
+        cam_paths = get_newcam_list(SENTRYCLIPS_PATH, SENTRYCLIPS_CHECKPOINT)
+        if UPLOAD_METHOD == 'smb':
+            upload_for_smb(SENTRYCLIPS_PATH, cam_paths, TARGET_SENTRYCLIPS_PATH, SENTRYCLIPS_CHECKPOINT)
+        else:
+            upload_for_sftp(SENTRYCLIPS_PATH, cam_paths, 'SentryClips', SENTRYCLIPS_CHECKPOINT)
         print('Sentry done')            
-        cam_paths = get_newcam_list(SAVEDCAM_PATH, '/home/pi/TeslaCam/SavedClips_Checkpoint')
-        upload_for_smb(SAVEDCAM_PATH, cam_paths, 'SavedClips', '/home/pi/TeslaCam/SavedClips_Checkpoint')
-        #upload_for_sftp(SAVEDCAM_PATH, cam_paths, 'SavedClips', 'SavedClips_Checkpoint')
+
+        cam_paths = get_newcam_list(SAVEDCLIPS_PATH, SAVEDCLIPS_CHECKPOINT)
+        if UPLOAD_METHOD == 'smb':
+            upload_for_smb(SAVEDCLIPS_PATH, cam_paths, TARGET_SAVEDCLIPS_PATH, SAVEDCLIPS_CHECKPOINT)
+        else:
+            upload_for_sftp(SAVEDCLIPS_PATH, cam_paths, 'SavedClips', SAVEDCLIPS_CHECKPOINT)
         print('Saved done')            
-        #subprocess.call(['umount', '/mnt/cam'])
+
+        subprocess.call(['umount', '/mnt/cam'])
